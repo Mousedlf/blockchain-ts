@@ -1,7 +1,7 @@
 import {generateKeyPairSync} from "crypto";
 import {Transaction} from "./Transaction";
 import {Blockchain} from "./Blockchain";
-import {verify} from "node:crypto";
+import {createPrivateKey, sign, verify} from "node:crypto";
 
 export class Wallet {
     publicKey: string;
@@ -34,11 +34,9 @@ export class Wallet {
         transaction.amount = amount;
 
         const balance = this.getBalance(this.publicKey, blockchain);
+        const isVerified = this.verifyKeys(this.publicKey, this.privateKey);
 
-        // check aussi si pubkey == privatekey
-       // verify("");
-
-        if(balance > amount) {
+        if(balance >= amount && isVerified) {
             transaction.signed = true;
             blockchain.addBlock(blockchain, transaction);
         } else {
@@ -54,9 +52,34 @@ export class Wallet {
             if(block.transaction.receiver == publicKey){
                 balance += block.transaction.amount;
             }
+            if(block.transaction.sender == publicKey){
+                balance -= block.transaction.amount;
+            }
         }
-
         return balance;
     }
 
+    public verifyKeys(publicKey: string, privateKey:string): boolean{
+
+        try{
+
+            const privateKeyObject = createPrivateKey({
+                key: privateKey,
+                format: 'pem',
+                passphrase: 'top secret',
+            });
+
+            // Vérifier la signature avec la clé publique
+            return verify(
+                "sha256",
+                Buffer.from(""),
+                publicKey,
+                sign("sha256", Buffer.from(""), privateKeyObject)
+            );
+
+        } catch(err) {
+            console.log("Erreur lors de la vérification des clés :" , err);
+            return false;
+        }
+    }
 }
